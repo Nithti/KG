@@ -104,8 +104,19 @@ public class KGGraphRepository implements KGGraphDao {
     @Override
     public HashMap<String, Object> getDomainGraph(GraphQuery query) {
         HashMap<String, Object> nr = new HashMap<String, Object>();
+        List<Object> resultNode = new ArrayList<>();
+        List<Object> resultRelation = new ArrayList<>();
+        List<String>domainProperties = Arrays.asList("ba","swsj","ddjb","sfzr","yj","ly");
+        //不同域的属性
+        List<String>resProperties = Arrays.asList("color", "label", "level", "name", "r", "res_cd", "res_nm", "value");
+        List<String>swsjProperties = Arrays.asList("ckflz", "color", "damel", "ddz", "dsflz", "name", "r", "rz","value","wrz");
+        List<String>ddjbProperties = Arrays.asList("city_nm", "color", "county_nm", "name", "r", "value");
+        List<String>sfzrProperties = Arrays.asList("color","name","r","value");
+        List<String>yjProperties = Arrays.asList("color","name","r","value","yj");
+        List<String>lyProperties = Arrays.asList("bas","color","name","r","value");
         try {
             String domain = query.getDomain();
+            System.out.println(domain);
             // MATCH (n:`症状`) -[r]-(m:症状) where r.name='治疗' or r.name='危险因素' return n,m
 //            System.out.println(query);
 //            System.out.println(query.getDomain());
@@ -119,43 +130,170 @@ public class KGGraphRepository implements KGGraphDao {
                     }
                     cqr = String.join(" or ", lis);
                 }
-                String cqWhere = "";
+                System.out.println(cqr);
+                String cqWhereBa = ""; //域为ba
+                String cqWhereSwsj=""; //域为水位设计
+                String cqWhereDdjb = ""; //域为地点基本信息
+                String cqWhereSfzr = ""; //三个负责人
+                String cqWhereYj = ""; //预警域
+                String cqWhereLy = ""; //流域域
                 // if语句就是判断字段串为空的操作
                 if (!StringUtil.isBlank(query.getNodeName()) || !StringUtil.isBlank(cqr)) {
 
                     if (!StringUtil.isBlank(query.getNodeName())) {
                         if (query.getMatchType() == 1) {
-                            cqWhere = String.format("where n.name ='%s' ", query.getNodeName());
+                            cqWhereBa = String.format("where n.name ='%s' ", query.getNodeName());
 
                         } else {
-                            cqWhere = String.format("where n.name contains('%s')", query.getNodeName());
+                            cqWhereBa =cqWhereBa.concat(String.format("where n.%s contains('%s') or ", resProperties.get(0),query.getNodeName()));
+                            cqWhereSwsj = cqWhereSwsj.concat(String.format("where n.%s =%s or ", swsjProperties.get(0),query.getNodeName()));
+                            cqWhereDdjb = cqWhereDdjb.concat(String.format("where n.%s contains('%s') or ", ddjbProperties.get(0),query.getNodeName()));
+                            cqWhereSfzr = cqWhereSfzr.concat(String.format("where n.%s contains('%s') or ", sfzrProperties.get(0),query.getNodeName()));
+                            cqWhereYj = cqWhereYj.concat(String.format("where n.%s contains('%s') or ", yjProperties.get(0),query.getNodeName()));
+                            cqWhereLy = cqWhereLy.concat(String.format("where n.%s contains('%s') or ", lyProperties.get(0),query.getNodeName()));
+                            //ba域
+                            for (int i=1;i<resProperties.size();i++){
+                                cqWhereBa =cqWhereBa.concat(String.format(" n.%s contains('%s') or ", resProperties.get(i),query.getNodeName()));
+                            }
+                            //水位设计域
+                            for(int i=1;i<swsjProperties.size();i++){
+                                cqWhereSwsj = cqWhereSwsj.concat(String.format(" n.%s =%s or ", swsjProperties.get(i),query.getNodeName()));
+                            }
+                            // 地点基本信息域
+                            for (int i =1; i<ddjbProperties.size();i++){
+                                cqWhereDdjb =cqWhereDdjb.concat(String.format(" n.%s contains('%s') or ", ddjbProperties.get(i),query.getNodeName()));
+                            }
+                            // 三个责任人域
+                            for (int i =1; i<sfzrProperties.size();i++){
+                                cqWhereSfzr =cqWhereSfzr.concat(String.format(" n.%s contains('%s') or ", sfzrProperties.get(i),query.getNodeName()));
+                            }
+                            // 预警等级
+                            for (int i =1; i<yjProperties.size();i++){
+                                cqWhereYj =cqWhereYj.concat(String.format(" n.%s contains('%s') or ", yjProperties.get(i),query.getNodeName()));
+                            }
+                            // 流域
+                            for (int i =1; i< lyProperties.size();i++){
+                                cqWhereLy =cqWhereLy.concat(String.format(" n.%s contains('%s') or ", lyProperties.get(i),query.getNodeName()));
+                            }
+                            // 去掉后面单独的or
+                            cqWhereBa = cqWhereBa.substring(0,cqWhereBa.length()-4);
+                            cqWhereSwsj = cqWhereSwsj.substring(0,cqWhereSwsj.length()-4);
+                            cqWhereDdjb = cqWhereDdjb.substring(0,cqWhereDdjb.length()-4);
+                            cqWhereSfzr = cqWhereSfzr.substring(0,cqWhereSfzr.length()-4);
+                            cqWhereYj = cqWhereYj.substring(0,cqWhereYj.length()-4);
+                            cqWhereLy = cqWhereLy.substring(0,cqWhereLy.length()-4);
+
+                            System.out.println("------------");
+                            System.out.println(cqWhereLy);
                         }
                     }
-                    String nodeOnly = cqWhere;
+                    //不同域的nodeOnly
+                    String nodeOnly = cqWhereBa;
+                    String nodeOnlySwsj = cqWhereSwsj;
+                    String nodeOnlyDdjb = cqWhereDdjb;
+                    String nodeOnlySfzr = cqWhereSfzr;
+                    String nodeOnlyYj = cqWhereYj;
+                    String nodeOnlyLy = cqWhereLy;
                     //应该是和关系的筛选有关，在where中增加条件
                     if (!StringUtil.isBlank(cqr)) {
-                        if (StringUtil.isBlank(cqWhere)) {
-                            cqWhere = String.format(" where ( %s )", cqr);
+                        if (StringUtil.isBlank(cqWhereBa)) {
+                            cqWhereBa = String.format(" where ( %s )", cqr);
 
                         } else {
-                            cqWhere += String.format(" and ( %s )", cqr);
+                            cqWhereBa += String.format(" and ( %s )", cqr);
                         }
 
                     }
                     // 下边的查询查不到单个没有关系的节点,考虑要不要左箭头
-                    String nodeSql = String.format("MATCH (n:`%s`) <-[r]->(m) %s return * limit %s", domain, cqWhere,
+                    // 包含的节点
+                    //ba域
+                    String nodeSql = String.format("MATCH (n:`%s`) <-[r]->(m) %s return * limit %s", domain, cqWhereBa,
                             query.getPageSize());
-
+                    //swsj域
+                    String nodeSqlSwsj = String.format("MATCH (n:`%s`) <-[r]->(m) %s return * limit %s", domainProperties.get(1), cqWhereSwsj,
+                            query.getPageSize());
+                    //ddjb域
+                    String nodeSqlDdjb = String.format("MATCH (n:`%s`) <-[r]->(m) %s return * limit %s", domainProperties.get(2), cqWhereDdjb,
+                            query.getPageSize());
+                    //sfzr域
+                    String nodeSqlSfzr = String.format("MATCH (n:`%s`) <-[r]->(m) %s return * limit %s", domainProperties.get(3), cqWhereSfzr,
+                            query.getPageSize());
+                    //yj域
+                    String nodeSqlYj = String.format("MATCH (n:`%s`) <-[r]->(m) %s return * limit %s", domainProperties.get(4), cqWhereYj,
+                            query.getPageSize());
+                    //ly域
+                    String nodeSqlLy = String.format("MATCH (n:`%s`) <-[r]->(m) %s return * limit %s", domainProperties.get(5), cqWhereLy,
+                            query.getPageSize());
+                    // 搜索关系
+                    String nodeSqlRel = String.format("MATCH p=()-[r:`%s`]->() return * limit %s", query.getNodeName(),
+                            query.getPageSize());
+                    System.out.println("cypher");
+                    System.out.println(nodeSqlRel);
                     //该语句真正根据名字去查询出对应的结点和关系
+                    // ba域
                     HashMap<String, Object> graphNode = Neo4jUtil.getGraphNodeAndShip(nodeSql);
                     Object node = graphNode.get("node");
-//                    System.out.println(graphNode);
-//                    System.out.println(node);
+                    resultNode.add(node);
+                    resultRelation.add(graphNode.get("relationship"));
+                    //水位设计域
+                    HashMap<String, Object> graphNodeSwsj = Neo4jUtil.getGraphNodeAndShip(nodeSqlSwsj);
+                    Object nodeSwsj = graphNodeSwsj.get("node");
+                    resultNode.add(nodeSwsj);
+                    resultRelation.add(graphNodeSwsj.get("relationship"));
+                    //地点基本域
+                    HashMap<String, Object> graphNodeDdjb = Neo4jUtil.getGraphNodeAndShip(nodeSqlDdjb);
+                    Object nodeDdjb = graphNodeDdjb.get("node");
+                    resultNode.add(nodeDdjb);
+                    resultRelation.add(graphNodeDdjb.get("relationship"));
+                    // 三个责任人域
+                    HashMap<String, Object> graphNodeSfzr = Neo4jUtil.getGraphNodeAndShip(nodeSqlSfzr);
+                    Object nodeSfzr = graphNodeSfzr.get("node");
+                    resultNode.add(nodeSfzr);
+                    resultRelation.add(graphNodeSfzr.get("relationship"));
+                    // 预警等级域
+                    HashMap<String, Object> graphNodeYj = Neo4jUtil.getGraphNodeAndShip(nodeSqlYj);
+                    Object nodeYj = graphNodeYj.get("node");
+                    resultNode.add(nodeYj);
+                    resultRelation.add(graphNodeYj.get("relationship"));
+                    // 流域域
+                    HashMap<String, Object> graphNodeLy = Neo4jUtil.getGraphNodeAndShip(nodeSqlLy);
+                    Object nodeLy = graphNodeLy.get("node");
+                    resultNode.add(nodeLy);
+                    resultRelation.add(graphNodeLy.get("relationship"));
+                    // 关系
+                    HashMap<String, Object> graphNodeRe = Neo4jUtil.getGraphNodeAndShip(nodeSqlRel);
+                    Object nodeRe = graphNodeRe.get("node");
+                    resultNode.add(nodeRe);
+                    resultRelation.add(graphNodeRe.get("relationship"));
+
+                    System.out.println(resultNode.size());
+                    System.out.println(resultRelation.size());
+                    System.out.println(resultNode);
+                    System.out.println(resultRelation);
                     // 没有关系显示则显示节点
-                    if (node != null) {
-                        nr.put("node", graphNode.get("node"));
-                        nr.put("relationship", graphNode.get("relationship"));
-                    } else {
+                    if (node != null || nodeSwsj != null || nodeDdjb != null || nodeSfzr != null || nodeYj != null || nodeLy != null || nodeRe != null) {
+//                        nr.put("node", resultNode.get(0));
+//                        nr.put("relationship", resultRelation.get(0));
+                        for (int i = 0 ; i < resultNode.size() ; i++){
+                            if (resultNode.get(i) != null){
+                                nr.put("node",resultNode.get(i));
+                                nr.put("relationship",resultRelation.get(i));
+                            }
+                        }
+                    }
+//                    else if(nodeSwsj != null){
+//                        nr.put("node", resultNode.get(1));
+//                        nr.put("relationship", resultRelation.get(1));
+//                    }
+//                    else if(nodeDdjb != null){
+//                        nr.put("node", resultNode.get(2));
+//                        nr.put("relationship",resultRelation.get(2));
+//                    }
+//                    else if(nodeSfzr != null){
+//                        nr.put("node", resultNode.get(3));
+//                        nr.put("relationship",resultRelation.get(3));
+//                    }
+                    else {
                         String nodecql = String.format("MATCH (n:`%s`) %s RETURN distinct(n) limit %s", domain,
                                 nodeOnly, query.getPageSize());
                         //如果结点查找为null又换个函数再找一次，应该是针对没有关系结点的，前面函数是有关系的
@@ -165,12 +303,12 @@ public class KGGraphRepository implements KGGraphDao {
                     }
                 } else {
                     //对应name为空的操作，应该是无条件查询
-                    String nodeSql = String.format("MATCH (n:`%s`) %s RETURN distinct(n) limit %s", domain, cqWhere,
+                    String nodeSql = String.format("MATCH (n:`%s`) %s RETURN distinct(n) limit %s", domain, cqWhereBa,
                             query.getPageSize());
                     List<HashMap<String, Object>> graphNode = Neo4jUtil.getGraphNode(nodeSql);
                     nr.put("node", graphNode);
                     String domainSql = String.format("MATCH (n:`%s`)<-[r]-> (m) %s RETURN distinct(r) limit %s", domain,
-                            cqWhere, query.getPageSize());// m是否加领域
+                            cqWhereBa, query.getPageSize());// m是否加领域
                     List<HashMap<String, Object>> graphRelation = Neo4jUtil.getGraphRelationShip(domainSql);
                     nr.put("relationship", graphRelation);
                 }
